@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
-set(PICO_SDK_PATH "C:/MicrocontrollerTools/Pico/pico-sdk")
+set(PICO_SDK_PATH "~/src-import/RPi-pico")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include("${PICO_SDK_PATH}/external/pico_sdk_import.cmake")
@@ -37,6 +37,7 @@ target_link_libraries(P05_SW_PicoIRQTest pico_stdlib)
 target_link_libraries( P05_SW_PicoIRQTest
         hardware_timer
         hardware_clocks
+        hardware_pwm
         )
 
 pico_add_extra_outputs(P05_SW_PicoIRQTest)
