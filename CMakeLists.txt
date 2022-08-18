@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
+set(PICO_COPY_TO_RAM 1)
 
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
@@ -20,12 +21,12 @@ pico_sdk_init()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(sources main.c)
-
+set(PICO_CMAKE_BUILD_TYPE Debug)
 # Add executable. Default name is the project name, version 0.1
 add_executable(P05_SW_PicoIRQTest ${sources})
 
 pico_set_program_name(P05_SW_PicoIRQTest "P05_SW_PicoIRQTest")
-pico_set_program_version(P05_SW_PicoIRQTest "0.1")
+pico_set_program_version(P05_SW_PicoIRQTest "0.2")
 
 pico_enable_stdio_uart(P05_SW_PicoIRQTest 1)
 pico_enable_stdio_usb(P05_SW_PicoIRQTest 0)
@@ -38,6 +39,9 @@ target_link_libraries( P05_SW_PicoIRQTest
         hardware_timer
         hardware_clocks
         hardware_pwm
+        hardware_flash
+        hardware_irq
+        hardware_gpio
         )
 
 pico_add_extra_outputs(P05_SW_PicoIRQTest)

@@ -2,13 +2,27 @@
 #include <stdint.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
+#include "hardware/irq.h"
+#include "hardware/structs/xip_ctrl.h"
+#include "hardware/gpio.h"
+#include "hardware/structs/iobank0.h"
+#include "hardware/structs/sio.h"
 
 #define dGPIO_IRQ ( 0 )
 #define dGPIO_OUT1 ( 2 )
 #define dGPIO_OUT2 ( 3 )
 #define dPWMOUT 10
 
+// define EXCLUSIVEIRQ non-zero to have the code add the IRQ directly
+// to vector table.  set it to zero to use the per-pin dispatch via
+// gpio_set_irq_enabled_with_callbac
+#define EXCLUSIVEIRQ 1
+
+// define USESIO non-zero to try to use the one-cycle SIO instead of GPIO
+#define USESIO 1
+
 void GPIO_IRQHandlerFunc( uint gpio, uint32_t events );
+void GPIO_exclusiveIRQ(void);
 bool bSetting = false;
 
 void mypwm_init() {
@@ -35,6 +49,7 @@ void mypwm_init() {
 
 int main()
 {
+//  set_sys_clock_khz(266000, true);
     gpio_init(dGPIO_OUT1);
     gpio_set_dir(dGPIO_OUT1, true);
     gpio_put(dGPIO_OUT1, true);
@@ -49,9 +64,15 @@ int main()
     gpio_set_dir(dGPIO_IRQ, false);
     gpio_set_pulls(dGPIO_IRQ, true, false);
     /* Use falling slope as trigger source */
-    gpio_set_irq_enabled_with_callback( dGPIO_IRQ, 0x04, true, &GPIO_IRQHandlerFunc);
+#if EXCLUSIVEIRQ
+    irq_set_exclusive_handler(IO_IRQ_BANK0, GPIO_exclusiveIRQ);
+    gpio_set_irq_enabled(dGPIO_IRQ, 0x4, true);
+    irq_set_enabled(IO_IRQ_BANK0, true);
+#else
+    gpio_set_irq_enabled_with_callback(dGPIO_IRQ, 0x04, true, &GPIO_IRQHandlerFunc);
+#endif    
     mypwm_init();
-    
+    xip_ctrl_hw->ctrl = 0; // disable cache
     while(1)
     {
     }
@@ -65,6 +86,19 @@ int main()
 // __attribute__((__section__(".scratch_x.GPIO_IRQHandlerFunc")))
 void GPIO_IRQHandlerFunc( uint gpio, uint32_t events )
 {
+    padsbank0_hw->io[dGPIO_OUT1] = PADS_BANK0_GPIO0_OD_BITS;
+    padsbank0_hw->io[dGPIO_OUT2] ^= PADS_BANK0_GPIO0_OD_BITS;
+}
+
+void GPIO_exclusiveIRQ(void)
+{
+#if USESIO
+  sio_hw->gpio_oe_togl = 1<<dGPIO_OUT1;
+  sio_hw->gpio_oe_togl = 1<<dGPIO_OUT2;
+#else
     padsbank0_hw->io[dGPIO_OUT1] ^= PADS_BANK0_GPIO0_OD_BITS;
     padsbank0_hw->io[dGPIO_OUT2] ^= PADS_BANK0_GPIO0_OD_BITS;
+#endif
+    // clear interrupt cause
+    iobank0_hw->intr[dGPIO_IRQ / 8] = 0xF << 4 * (dGPIO_IRQ % 8);
 }
